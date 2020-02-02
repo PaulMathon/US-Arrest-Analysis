@@ -1,0 +1,241 @@
+---
+title: "US Arrest"
+author: "Paul"
+date: "05/12/2018"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+rm(list = ls())
+donnees <- USArrests
+donnees2 <- read.csv2("USArrests.csv", header=TRUE)
+str(donnees2)
+```
+
+Nous avons une base de donnee qui contient quatre colonnes : 
+- "Murder" = arrestation pour meutre (pour 100 000 individus) 
+- "Assault" = arrestation pour agression (pour 100 000 individus)
+- "Rape" = arrestation pour vol (pour 100 000 individus)
+- "UrbanPop" = pourcentage de la population vivant en ville
+- "Geographic" = Situation geographique de l'Etat. 0: Alaska et Hawai 1: Nord-Ouest des USA 2- Nord-Est des USA 3- Sud-Est des USA 4- Sud-Ouest des USA
+- "RacismRate" = Taux de racisme aux Etats-Unis 
+- "AfricanAmericanProp" = pourcentage de population Afro-americaine 
+
+Les donnees que nous avons ajoute a notre jeu de donnees sont datees d'avant 2009. Il etait en effet trop difficile de trouver des donnees suffisament fiables datant de 1975. Le contexte politique et social n'ayant pas beaucoup evolue, nous pensons que ces donnees recoltees nous donne un avis assez fiable concernant la situation en 1975.
+
+#ACP 
+
+Nous avons decide de nous baser sur le nombre d'arrestations pour meutre dans les differentes Etats des USA. 
+
+```{r}
+summary(donnees2)
+```
+
+Nous remarquons donc que la moyenne des arrestations pour meurtre est de 7.788%. 
+Le premier quartile est de  4.075%.
+Le troisi??me quartile est 11.250%.
+Le proportion maximum d'arrestations pour meurtre est de 17.4%.
+Le proportion minimum d'arrestations pour meurtre est de 0.8%.
+
+Composantes principales : 
+```{r}
+data(USArrests)
+princomp( ~ Murder + Assault + UrbanPop, data=USArrests)
+```
+
+Graphique representant le pourcentage de meutre par Etat.
+```{r}
+x = c(donnees2$Murder)
+nom_barre <- c(donnees2$Etat)
+barplot(x, names.arg = donnees2$Etat, horiz = TRUE, las=2, cex.names = 0.40, width = 4, space=2 )
+```
+
+Nous pouvons constater qu'en 1975, les Etats avec le plus d'arrestation pour meurtre sont la Georgie, le Mississippi et la Louisiane. 
+
+##Rapport aux armes
+
+Les Etats-Unis sont connus et font l'objet de nombreuses polemiques au sujet du permis de port d'arme. C'est pour cela , que notre premiere intuition est de lier la proportion de meurtres au nombre d'armes par habitant selon l'??tat.
+Suite a des recherches, nous avons pu trouver les donnees necessaires afin d'ajouter une colonne "GunPerHabitant" a notre base de donnees afin de pouvoir determiner s'il y a une correlation.
+
+
+```{r}
+plot(donnees2$GunPerHabitant, donnees2$Murder)
+```
+Le graphique si dessus est difficilement interpr??table car la pr??sence d'un point d'absisse 134 (Kentucky) est trop ??lev?? par rapport aux autres points et de ce fait densifie leur r??partition.
+Nous allons donc supprimer ce point temporairement en cr??ant un sous ensemble que nous appellerons "donnees3" qui ne comportera pas ce point. 
+
+```{r}
+donnees3 <- subset(donnees2, GunPerHabitant!=134)
+donnees3
+plot(donnees3$GunPerHabitant, donnees3$Murder, xlab="Pourcentage d'armes ?? feu par habitant", ylab="Nombre de meurtres pour 100 000 habitants")
+```
+Le nuage de point ??tant approximativement r??pparti ??quitablement dans l'espace, nous pouvons conclure qu'il n'existe aucune corr??lation entre la proportion d'armes ?? feu par habitant, et le nombre de meurtres. 
+Il est donc impossible d'expliquer les diff??rences de meurtre par ??tat gr??ce ?? la proportion d'arme ?? feu par habitant.
+
+##Rapport geographique
+
+Nous avons ensuite cherch?? ?? savoir si il existe un lien entre le nombre de meurtre selon la position g??ographique de l'??tat.
+Pour cela, nous avons volontairement ajout?? une colonne ?? notre jeu de donn??es ; un ??tat se verra attribu?? la valeur 0,1,2,3 ou 4 selon le crit??re suivant.
+  0 - Autres
+  1 - Nord-Ouest
+  2 - Nord-Est
+  3 - Sud-Est
+  4 - Sud-Ouest
+
+```{r}
+boxplot(donnees2$Murder~donnees2$Geographic, xlab="Situation geographique", ylab="Pourcentage de meurtres total")
+```
+De maniere generale, grace a ce boxplot, nous pouvons constater que tous les Etats ayant le plus de meurtre sont situes au Sud-Est des Etats-Unis (numero 3). Et ceux ou il y a le moins de meurtre sont situes au Nord-Ouest des Etats-Unis (numero 1), m??me si cette distinction est moins claire que la pr??c??dente.
+
+
+##Rapport avec le taux de racisme
+
+Apres de multiple recherches sur les differents etats, nous avons pu constater que les etats possedant un fort taux de criminalite (meurtre) etaient souvent lies a des cas de racisme. 
+Nous allons donc chercher il existe bien une correlation entre la criminalite et le racisme. 
+Il est d'abord necessaire de trouver un moyen d'avaluer la racisme dans un etat. Nous avons fait le choix de nous appuyer sur une etude realisee par le site web Abodo. Leur etude a consiste entre autres a mesurer la proportion de tweets contenant des propos racistes par etats. Ils ont ainsi revele les 10 etats au plus fort taux et les 10 etats au plus faible taux.
+Nous avons donc de discrediter ces donnees de la maniere suivante : si l'etat apartient aux 10 premiers, il possedera la valeur 'fort', la valeur 'faible' si il fait partie des 10 derniers et la valeur 'modere' si il n'appartient ?? aucun des ces deux groupes.
+Source : https://www.abodo.com/blog/tolerance-in-america/
+
+Nous allons donc effectuer un boxplot afin de voir s'il le racisme a une reel influence sur le taux de meutre. 
+
+```{r}
+boxplot(donnees2$Murder~donnees2$RacismRate, xlab="Importance du racisme", ylab="Pourcentage de meurtres total")
+```
+D'apres ce graphique, nous pouvons constater qu'il y a visiblement un lien entre le racisme et le taux de meutre. En effet, quand le racisme est fort, le taux de meutre est eleve et quand le racisme est faible alors le taux de meutre est faible.
+
+
+##Rapport avec la proportion d'individu Afro-am??ricain dans la population.
+
+Nous allons ?? pr??sent determiner si le proportion de meurtres par etats est proportionnelle a la proportion d'individu d'origine Afro-am??ricaine dans la population.
+
+Il est pour cela necessaire d'ajouter une nouvelle colonne a notre jeu de donnees, elle renseignera la proportion d'individu d'origine Afro-am??ricaine de chaque etat. 
+Source : https://www.census.gov//2010census/popmap/
+
+```{r}
+plot(donnees2$AfricanAmericanProp, donnees2$Murder,xlab="Proportion d'individus Afro-Americain", ylab = "Nombre de meurtres pour 100000 individus")
+```
+D'apr??s le graphique ci-dessus, un lien entre le pourcentage de population afro-am??ricaine et la proportion de meurtres apparait. Nous allons ?? pr??sent d??terminer la p-value du mod??le de r??gression lin??aire 
+
+```{r}
+regression <- lm(donnees2$Murder~donnees2$AfricanAmericanProp)
+plot(donnees2$AfricanAmericanProp, donnees2$Murder,xlab="Proportion d'individus Afro-Americain", ylab = "Nombre de meurtres pour 100000 individus")
+abline(regression)
+summary(regression)
+```
+La p-value obtenue est egale a 2.499e-11, elle est donc tres proche de 0. La correlation est donc justifiee. 
+
+Il semblerait donc que le nombre de meurtres peut egalement etre explique par la proportion d'individus afro-americains, plus la proportion d'afro-americain augmente, plus la proportion de meurtre augmente. Ces r??sultats sont cependant a prendre avec des pincettes. En effet deux hypoth??ses sont envisageables :
+1- Le racisme est responsable de la proportion de meurtres, ainsi si un etats presente un taux de racisme plus important alors le nombre de meurtre par habitant sera plus important.
+Cette hypothese laisse a penser qu'il y a eu enormement de crimes envers la population Afro-Americain du a la forte presence du racisme a cette epoque.
+2- La porportion de meurtres est responsable du taux de racisme d'un etat. Ainsi un nombre important de meurtres par habitants impliquerait un taux de racisme important.
+Cette deuxi??me hypoth??se laisserai sous entendre que les individus d'origine afro-americaine seraient resonsables en majorite des meurtres commis. Nous ne pouvons toutefois pas verifier cette hypothese car nous manquons de donnees, malgres nos recherches nous n'avons pas trouve ce qui nous interesse. La proportion des meurtres commis par des individus afro-americains aurait ete interessante.
+Il nous semble utile de rappeler que ces dernieres analyses ne sont que des hypotheses et qu'elle ne represente en aucun cas une verite generale.  
+Nous allons donc proceder a l'etude des residus. 
+
+```{r}
+res.lm <- lm(donnees2$Murder~donnees2$AfricanAmericanProp)
+shapiro.test(resid(res.lm))
+plot(res.lm,which=2)
+```
+
+Notre p-value est au dessus du seuil de 5%. L'hypothese de normalite n'est donc pas rejetee. De plus, a partir du deuxieme graphique, nous pouvons dire que l'hypothese gaussienne est verifiee. 
+
+```{r}
+acf(residuals(res.lm))
+```
+Ici, une barre depasse legerement. Cependant, elle est negligagle, donc nous concluons que l'independance n'est pas remise en cause.
+
+```{r}
+cooks.distance(res.lm)
+plot(res.lm,which=4)
+plot(res.lm,which=5)
+```
+
+```{r}
+res.lm.new <- lm(donnees2$Murder~donnees2$AfricanAmericanProp, subset=(1:50)[-20]) 
+shapiro.test(resid(res.lm.new))
+```
+Nous obtenons une p-value de 65,64%. 
+Le modele de regression est donc valide.
+
+
+\newpage
+##Regretion lineaire (Prediction)
+
+Enfin, nous rechercherons une corellation entre le nombre de meurtre, et le pourcentage de population vivant en ville. 
+
+```{r}
+
+urbanCrime <- data.frame(donnees2$UrbanPop,donnees$Murder)
+str(urbanCrime)
+plot(urbanCrime,main="",xlab="Population Urbaine [%]",ylab="Meutres [Pour 100 000 individus]")
+pop.lm<-lm(donnees$Murder~donnees$UrbanPop)
+abline(pop.lm)
+summary(pop.lm)
+```
+Nous pouvons constater qu'aucune correlation n'apparait, la droite de regression semble avoir ete placee au hasard. De plus la p-value est suprieure a 5% elle n'est donc pas significative.
+Nous pouvons donc en conclure qu'un individu vivant au Etats-Unis aura statistiquement autant de chance d'etre victimes d'un meutre en ville ou a la campagne.
+
+Nous etudions ensuite un eventuel lien entre la proportion d'agressions et le pourcentage de population vivant dans les villes.
+```{r}
+urbanAssault <- data.frame(donnees$UrbanPop,donnees$Assault)
+str(urbanAssault)
+plot(urbanAssault,main="",xlab="Population Urbaine [%]",ylab="Agressions [Pour 100 000 individus]")
+pop1.lm<-lm(donnees$Assault~donnees$UrbanPop)
+abline(pop1.lm)
+summary(pop1.lm)
+```
+Une nouvelle fois les resultat semblent peu convainquant. En etudiant les principales proprietes statistiques de la regression
+Nous pouvons donc en conclure qu'un individu vivant au Etats-Unis aura statistiquement autant de chance d'etre victimes d'une agression en ville ou a la campagne. De plus la p-value est superieure a 5% elle n'est donc pas significative.
+
+Nous etudions enfin un eventuel lien entre la proportion d'agressions et le pourcentage de population vivant dans les villes.
+```{r}
+urbanRape <- data.frame(donnees$UrbanPop,donnees$Rape)
+str(urbanRape)
+plot(urbanRape,main="",xlab="Population Urbaine [%]",ylab="Viols [Pour 100 000 individus]")
+pop2.lm<-lm(donnees$Rape~donnees$UrbanPop)
+abline(pop2.lm)
+```
+Cette fois-ci nous observons une droite de regression lineaire qui pourraient mettre en evidence un eventuel lien entre le pourcentage de viols et le fait d'habiter en ville ou a la campagne.
+
+Nous allons a present etudier la validite du modele.
+```{r}
+summary(pop2.lm)
+```
+On constate que la p-value est inferieure a 5%, elle est donc significative. Nous allons verifier la validite de la regression grace aux tests suivants:
+
+```{r}
+shapiro.test(resid(pop2.lm))
+```
+On obtient une p-value de 8,33%. Cette p-value depasse le seuil de 5%. L'hypothese de normalite est accepte. L'hypothese gaussienne est donc verifiee. 
+
+```{r}
+acf(residuals(pop2.lm))
+```
+Aucune barre (excepte la premiere) ne depasse des seuils en pointilles. L'hypothese d'independance n'est donc pas mise a defaut. 
+```{r}
+cooks.distance(pop2.lm)
+plot(pop2.lm,which=4)
+plot(pop2.lm,which=5)
+```
+
+Les distances sont inferieures a 1, donc il n'y a pas de point perturbant l'estimation. 
+Cependant le point 28 et 39 semble atypique.
+
+```{r}
+pop2.lm.new <- lm(donnees$Rape~donnees$UrbanPop, subset=(1:50)[-28])
+shapiro.test(resid(pop2.lm.new))
+```
+
+D'apres nos resultats, nous pouvons dire qu'il existe un lien entre le fait d'habiter en ville et le nombre d'arrestations au USA en 1975. Nous pouvons donc predire qu'il a plus de chance d'etre victime d'un viol lorsque nous habitons en ville plutot qu'a la campagne dans les annees a venir.
+
+
+Dans le cas de notre etude, il n'y a pas de reel utilite de faire une regression lineraire multiple. En effet, les differents crimes ne peuvent etre mis en relation car chaque arretastion est independante les unes des autres.
+
