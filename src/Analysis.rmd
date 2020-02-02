@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 rm(list = ls())
 donnees <- USArrests
-donnees2 <- read.csv2("USArrests.csv", header=TRUE)
+donnees2 <- read.csv2("../data/USArrests.csv", header=TRUE)
 str(donnees2)
 ```
 
